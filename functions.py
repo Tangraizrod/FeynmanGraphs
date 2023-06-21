@@ -43,7 +43,7 @@ def show_dictionary_images_and_networkx(filename):
         extensions = ['', '.png', '.jpg']
         for ext in extensions:
             try:
-                img = mpimg.imread(image_filename + ext)
+                img = mpimg.imread("Feynman_images/" + image_filename + ext)
                 break
             except FileNotFoundError:
                 continue
