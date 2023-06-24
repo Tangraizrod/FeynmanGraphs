@@ -18,6 +18,8 @@ from sklearn.metrics import accuracy_score
 import seaborn as sns
 from re import *
 from itertools import combinations
+from scipy.interpolate import make_interp_spline, BSpline
+from sklearn.model_selection import StratifiedKFold
 
 
 
@@ -228,17 +230,26 @@ def random_forest_classifier(grakel_graphs, class_list):
     # Initialize a Weisfeiler-Lehman subtree kernel
     # Calculate the kernel matrix.
     my_list = parse_input(grakel_graphs, 1)
-    my_list = [lst[22:] for lst in my_list]
+    my_list = [lst[:22] for lst in my_list]
     my_list = np.array(my_list)
     # Create numpy array from the classes list
     classes = np.array(class_list)
 
-    rf = RandomForestClassifier(n_estimators=30, max_depth=2, random_state=42)
-    rf.fit(my_list, classes)
+    rf = RandomForestClassifier(n_estimators=60, max_depth = 2,random_state=42)
+    
+    # Create StratifiedKFold object
+    skf = StratifiedKFold(n_splits=5, random_state=42, shuffle=True)
 
-    # Evaluate the model
-    scores = model_selection.cross_val_score(rf, my_list, classes, cv=5)
-    print("Cross-validation accuracy random-forest: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+    scores = []
+    for train_index, test_index in skf.split(my_list, classes):
+        X_train, X_test = my_list[train_index], my_list[test_index]
+        y_train, y_test = classes[train_index], classes[test_index]
+        rf.fit(X_train, y_train)
+        score = rf.score(X_test, y_test)
+        scores.append(score)
+        
+    print("Cross-validation accuracy random-forest: %0.2f (+/- %0.2f)" % (np.mean(scores), np.std(scores) * 2))
+
 
 def lime_explainer(grakel_graphs, class_list, index):
     feature_names_list = ["strong", "weak", "electromagnetic"]
@@ -506,8 +517,61 @@ def process_graph(index, json_file):
     plt.show()
 
 
+
+
+def plot_hyperparameter_tuning(grakel_graphs, class_list, depth_range, trees_range):
+    # Calculate the kernel matrix.
+    my_list = parse_input(grakel_graphs, 1)
+    my_list = [lst[:22] for lst in my_list]
+    my_list = np.array(my_list)
+
+    # Create numpy array from the classes list
+    classes = np.array(class_list)
+
+    # Define colors for different depths
+    colors = ['red', 'green', 'blue', 'yellow', 'magenta']
+
+    max_cv_score = 0
+    best_params = None
+
+    # For each depth
+    for i, depth in enumerate(depth_range):
+        cv_scores = []
+        # For each number of trees
+        for trees in trees_range:
+            rf = RandomForestClassifier(n_estimators=trees, max_depth=depth, random_state=42)
+            scores = model_selection.cross_val_score(rf, my_list, classes, cv=5)
+
+            avg_cv_score = scores.mean()
+            cv_scores.append(avg_cv_score)
+            if avg_cv_score > max_cv_score:
+                max_cv_score = avg_cv_score
+                best_params = (depth, trees)
+
+        # Smooth the curve
+        xnew = np.linspace(min(trees_range), max(trees_range), 300) 
+        spl = make_interp_spline(trees_range, cv_scores, k=3)  # type: BSpline
+        cv_scores_smooth = spl(xnew)
+
+        # Plot the results
+        plt.plot(xnew, cv_scores_smooth, color=colors[i], label=f'depth={depth}')
+
+    plt.legend(loc='best')
+    plt.xlabel('Number of Trees')
+    plt.ylabel('Cross-Validation Score')
+    plt.title('Hyperparameter tuning of Random Forest')
+    plt.grid(True)
+    plt.show()
+
+    print(f'The best parameters are depth={best_params[0]}, trees={best_params[1]} with a cross-validation score of {max_cv_score:.2f}')
+
+
+
+
 json_file = 'dictionary.json'
 classes = get_classes_from_json(json_file)
 graphs = convert_dict_to_grakel_graphs("dictionary.json")
+depth_range = range(2, 7) 
+trees_range = range(10, 200, 10) 
 
 
