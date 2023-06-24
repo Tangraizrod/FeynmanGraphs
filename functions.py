@@ -21,43 +21,46 @@ from itertools import combinations
 
 
 
-def show_dictionary_images_and_networkx(filename):
+def show_dictionary_images_and_networkx(filename, index):
 
     # Load the JSON file
     with open(filename, "r") as file:
         data = json.load(file)
 
-    # For each entry in the dictionary
-    for name, info in data.items():
-        # Convert the NetworkX JSON object back into a NetworkX graph
-        networkx_obj = nx.readwrite.json_graph.node_link_graph(info["networkx_obj"])
-        image_filename = info["image"]
+    # Get the specific entry based on the index
+    name = list(data.keys())[index]
+    info = data[name]
 
-        # Draw the NetworkX graph
-        plt.subplot(1, 2, 1)
-        pos = nx.spring_layout(networkx_obj)
-        nx.draw(networkx_obj, pos, with_labels=True, node_color='lightblue', 
-                node_size=100, font_size=8, font_weight='bold', edge_color='black', 
-                width=0.5, arrowsize=10)
+    # Convert the NetworkX JSON object back into a NetworkX graph
+    networkx_obj = nx.readwrite.json_graph.node_link_graph(info["networkx_obj"])
+    image_filename = info["image"]
 
-        # Load and display the image
-        plt.subplot(1, 2, 2)
-        extensions = ['', '.png', '.jpg']
-        for ext in extensions:
-            try:
-                img = mpimg.imread("Feynman_images/" + image_filename + ext)
-                break
-            except FileNotFoundError:
-                continue
+    # Draw the NetworkX graph
+    plt.subplot(1, 2, 1)
+    pos = nx.spring_layout(networkx_obj)
+    nx.draw(networkx_obj, pos, with_labels=True, node_color='lightblue', 
+            node_size=100, font_size=8, font_weight='bold', edge_color='black', 
+            width=0.5, arrowsize=10)
 
-        plt.imshow(img)
-        plt.axis('off')
+    # Load and display the image
+    plt.subplot(1, 2, 2)
+    extensions = ['', '.png', '.jpg', '.jpeg']
+    for ext in extensions:
+        try:
+            img = mpimg.imread("Feynman_images/" + image_filename + ext)
+            break
+        except FileNotFoundError:
+            continue
 
-        # Adjust the spacing between subplots
-        plt.subplots_adjust(wspace=0.2)
+    plt.imshow(img)
+    plt.axis('off')
 
-        # Show the combined figure
-        plt.show()
+    # Adjust the spacing between subplots
+    plt.subplots_adjust(wspace=0.2)
+
+    # Show the combined figure
+    plt.show()
+
 
 
 def wl_relabel(G):
@@ -167,11 +170,13 @@ def parse_input(grakel_graphs, h):
     features = gk.parse_input(grakel_graphs)
     return features
 
-# def parse_input_vh(grakel_graphs):
-#     gk = VertexHistogram()
-#     gk.fit_transform(grakel_graphs)
-    
-#     return 
+def parse_input_vh(grakel_graphs, h):
+    gk = WeisfeilerLehmanOptimalAssignment(n_iter = h, normalize=False)
+
+    # Fit and transform the kernel on the input graph list
+    gk.fit_transform(grakel_graphs)
+    features = gk.parse_input(grakel_graphs)
+    return features
 
 def representation(grakel_graphs, h):
     # Initialize the WeisfeilerLehmanOptimalAssignment kernel
@@ -181,10 +186,14 @@ def representation(grakel_graphs, h):
     gk.fit_transform(grakel_graphs)
     return gk._inv_labels
 
-def representation_vh(grakel_graphs):
+def representation_vh(grakel_graphs, h):
     gk = VertexHistogram()
+    gk = WeisfeilerLehmanOptimalAssignment(n_iter = h, normalize=True)
+
+    # Fit and transform the kernel on the input graph list
     gk.fit_transform(grakel_graphs)
-    return gk._inv_labels
+    vertex_labels = gk._inv_labels
+    return vertex_labels[0]
 
 def get_classes_from_json(json_file):
     with open(json_file, 'r') as f:
@@ -224,7 +233,7 @@ def random_forest_classifier(grakel_graphs, class_list):
     # Create numpy array from the classes list
     classes = np.array(class_list)
 
-    rf = RandomForestClassifier(n_estimators=150, random_state=42)
+    rf = RandomForestClassifier(n_estimators=30, max_depth=2, random_state=42)
     rf.fit(my_list, classes)
 
     # Evaluate the model
@@ -238,7 +247,7 @@ def lime_explainer(grakel_graphs, class_list, index):
     my_list = parse_input(grakel_graphs, 1)
     my_list = [lst[22:] for lst in my_list]
     my_list = np.array(my_list)
-    rf = RandomForestClassifier(n_estimators=150, random_state=42)
+    rf = RandomForestClassifier(n_estimators=30, max_depth=2,random_state=42)
     rf.fit(my_list, classes)
 
     explainer = lime.lime_tabular.LimeTabularExplainer(my_list, class_names = feature_names_list, discretize_continuous=True, random_state=42)
@@ -247,7 +256,7 @@ def lime_explainer(grakel_graphs, class_list, index):
     instance = my_list[i]
 
     # Generate an explanation
-    exp = explainer.explain_instance(instance, rf.predict_proba, num_features=20, top_labels=3)
+    exp = explainer.explain_instance(instance, rf.predict_proba, num_features=5, top_labels=3)
 
     # Visualize the explanation for each class
     for i in range(3):
@@ -269,8 +278,9 @@ def lime_explainer_vh(grakel_graphs, class_list, index):
     # Create numpy array from the classes list
     classes = np.array(class_list)
     my_list = parse_input_vh(grakel_graphs, 1)
+    my_list = [lst[:22] for lst in my_list]
     my_list = np.array(my_list)
-    rf = RandomForestClassifier(n_estimators=150, random_state=42)
+    rf = RandomForestClassifier(n_estimators=30, max_depth=2, random_state=42)
     rf.fit(my_list, classes)
 
     explainer = lime.lime_tabular.LimeTabularExplainer(my_list, class_names = feature_names_list, discretize_continuous=True, random_state=42)
@@ -306,7 +316,7 @@ def plot_rf_error(grakel_graphs, class_list):
     # Create numpy array from the classes list
     classes = np.array(class_list)
 
-    rf = RandomForestClassifier(n_estimators=150, random_state=42)
+    rf = RandomForestClassifier(n_estimators=30, max_depth=2, random_state=42)
     rf.fit(my_list, classes)
 
     # Cross-validation of the model
@@ -328,7 +338,7 @@ def plot_confusion_matrix(grakel_graphs, class_list):
     # Initialize a Weisfeiler-Lehman subtree kernel
     # Calculate the kernel matrix.
     my_list = parse_input(grakel_graphs, 1)
-    my_list = [lst[22:] for lst in my_list]
+    my_list = [lst[:22] for lst in my_list]
     my_list = np.array(my_list)
 
     # Create numpy array from the classes list
@@ -337,7 +347,7 @@ def plot_confusion_matrix(grakel_graphs, class_list):
     # Split data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(my_list, classes, test_size=0.4, random_state=42)
 
-    rf = RandomForestClassifier(n_estimators=150, random_state=42)
+    rf = RandomForestClassifier(n_estimators=40, max_depth=2, random_state=42)
     rf.fit(X_train, y_train)
 
     y_pred = rf.predict(X_test)
@@ -353,83 +363,25 @@ def plot_confusion_matrix(grakel_graphs, class_list):
     plt.ylabel('True')
     plt.show()
 
-def grakel_to_networkx(G):
-    g_nx = nx.Graph()
-
-    for u, v, data in G.edges(data=True):
-        g_nx.add_edge(u, v, **data)
-
-    for n, data in G.nodes(data=True):
-        g_nx.nodes[n].update(data)
-
-    return g_nx
 
 def find_substructure(graph, labels):
-    subgraph_nodes = []
-    
-    for node in graph.nodes(data=True):
-        if node[1]['label'] in labels:
-            subgraph_nodes.append(node[0])
-            labels.remove(node[1]['label'])
+    labels.sort()
 
-    # Find the edges that are part of the substructure
-    subgraph_edges = [edge for edge in graph.edges() if edge[0] in subgraph_nodes and edge[1] in subgraph_nodes]
-    
-    return subgraph_nodes, subgraph_edges
+    for combination in combinations(graph.nodes(data=True), len(labels)):
+        nodes, data = zip(*combination)
+        node_labels = sorted([d['label'] for d in data])
+        
+        # Check if labels match
+        if labels == node_labels:
+            subgraph = graph.subgraph(nodes)
 
-def visualize_substructure(graph, subgraph_nodes, subgraph_edges):
-    pos = nx.spring_layout(graph)  # position layout
-    plt.figure(figsize=(8, 6))
+            # Check if subgraph is connected
+            if nx.is_connected(subgraph):
+                subgraph_edges = list(subgraph.edges())
+                return nodes, subgraph_edges
 
-    # draw all nodes and edges in the graph in light color
-    nx.draw_networkx(graph, pos, node_color='blue', edge_color='black')
-    
-    # draw the nodes and edges of the subgraph in dark color
-    nx.draw_networkx_nodes(graph, pos, nodelist=subgraph_nodes, node_color='red')
-    nx.draw_networkx_edges(graph, pos, edgelist=subgraph_edges, edge_color='red')
-    nx.draw_networkx_labels(graph, pos)
-    plt.show()
-
-def find_substructure(graph, labels):
-    # Define substructure finding for small number of labels
-    def modified_method(labels):
-        subgraph_nodes = set()
-        subgraph_edges = set()
-
-        # Check all edges in the graph
-        for u, v, data in graph.edges(data=True):
-            edge_labels = [graph.nodes[u]['label'], graph.nodes[v]['label']]
-            if all(any(label.strip("_") in edge_label for edge_label in edge_labels) for label in labels):
-                subgraph_nodes.update([u, v])
-                subgraph_edges.add((u, v))
-        return subgraph_nodes, subgraph_edges
-
-    # If number of labels is small, use modified method
-    if len(labels) <= 3:
-        return modified_method(labels)
-
-    # If number of labels is greater than 3, use exhaustive search
-    else:
-        priority_labels = ['Z', 'W', 'g', 'gamma']
-
-        # Sort labels according to the priority list
-        labels.sort(key=lambda x: priority_labels.index(x) if x in priority_labels else len(priority_labels))
-
-        all_nodes = [node for node in graph.nodes(data=True)]
-        for nodes_comb in combinations(all_nodes, 4):
-            subgraph_nodes = [node[0] for node in nodes_comb]
-            subgraph = graph.subgraph(subgraph_nodes)
-            node_labels = [data['label'] for _, data in subgraph.nodes(data=True)]
-
-            if set(labels) == set(node_labels) and nx.is_connected(subgraph):
-                subgraph_edges = [edge for edge in graph.edges() if edge[0] in subgraph_nodes and edge[1] in subgraph_nodes]
-                return subgraph_nodes, subgraph_edges
-
-        # If no suitable subgraph found
-        return set(), set()
-
-
-
+    # If no suitable subgraph found
+    return set(), set()
 
 
 
@@ -466,9 +418,7 @@ def grakel_to_networkx(grakel_graph):
 
 def get_substructure_labels(feature_vector):
     feature_map = representation(graphs, 1)[1]
-    print(feature_map)
     node_mappings = representation(graphs, 1)[0]
-    print((node_mappings))
     inverse_node_mappings = {v: k for k, v in node_mappings.items()}
     # Get indices of non-zero entries in the feature vector, increment each index by 22
     positions = [index+22 for index, value in enumerate(feature_vector) if value > 0]
@@ -486,6 +436,74 @@ def get_substructure_labels(feature_vector):
 
     return substructure_labels
 
+def process_graph(index, json_file):
+    # Parse the input and get the feature vector
+    my_list = parse_input(graphs, 1)
+    my_list = [lst[22:] for lst in my_list]
+    my_list = np.array(my_list)
+    feature_vector = np.array(my_list[index])
+    
+    # Get the substructure labels
+    substructure_labels = get_substructure_labels(feature_vector)
+
+    # Load the graph data
+    with open(json_file, 'r') as f:
+        grakel_graphs = json.load(f)
+    
+    # Get the graph name from the keys of the dictionary using the index
+    graph_name = list(grakel_graphs.keys())[index]
+    graph = grakel_graphs[graph_name]["networkx_obj"]
+
+    # Convert to GraKeL graph
+    graph = networkx_obj_to_grakel(graph)
+    
+    # Convert to NetworkX graph
+    g_nx = grakel_to_networkx(graph)
+    
+    # Define the number of columns for subplot
+    ncols = 3
+    
+    # Calculate the number of rows needed for the subplot
+    nrows = -(-len(substructure_labels) // ncols)  # Ceiling division
+
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(10 * ncols, 10 * nrows))
+
+    # Ensure axs is always a 2D array
+    if nrows == 1 and ncols == 1:
+        axs = np.array([[axs]])
+    elif nrows == 1:
+        axs = axs[np.newaxis, :]
+    elif ncols == 1:
+        axs = axs[:, np.newaxis]
+
+    for i, labels in enumerate(substructure_labels):
+        # Calculate the row and column indices
+        row = i // ncols
+        col = i % ncols
+
+        # Find the substructure
+        subgraph_nodes, subgraph_edges = find_substructure(g_nx, labels)
+
+        # Create position layout
+        pos = nx.spring_layout(g_nx)
+
+        # Draw all nodes and edges in the graph in light color
+        nx.draw_networkx(g_nx, pos, node_color='blue', edge_color='black', ax=axs[row, col])
+
+        # Draw the nodes and edges of the subgraph in dark color
+        nx.draw_networkx_nodes(g_nx, pos, nodelist=subgraph_nodes, node_color='red', ax=axs[row, col])
+        nx.draw_networkx_edges(g_nx, pos, edgelist=subgraph_edges, edge_color='red', ax=axs[row, col])
+        nx.draw_networkx_labels(g_nx, pos, ax=axs[row, col])
+
+        # Print the index and labels below the graph
+        axs[row, col].set_title(f'Labels: {labels}')
+
+    # Remove unused subplots
+    for i in range(len(substructure_labels), nrows*ncols):
+        fig.delaxes(axs.flatten()[i])
+
+    plt.tight_layout()
+    plt.show()
 
 
 json_file = 'dictionary.json'

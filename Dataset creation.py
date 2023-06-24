@@ -33,6 +33,9 @@ while not terminated:
         terminated = True
     elif prompt == "object name":
         name = input("Enter the object name: ")
+        # Check if the object name is a string
+        if not isinstance(name, str):
+            raise ValueError("The object name must be a string.")
     elif prompt == "networkx":
         # Creating a NetworkX object
         G = nx.Graph()
@@ -57,8 +60,14 @@ while not terminated:
         networkx = G
     elif prompt == "image":
         image = input("Enter the image name: ")
+        # Check if the image name is a string
+        if not isinstance(image, str):
+            raise ValueError("The image name must be a string.")
     elif prompt == "class label":
         class_label = input("Enter the class label, (0 for strong, 1 for weak, 2 for EM): ")
+        # Check if the class label is a number between 0 and 2
+        if not class_label.isdigit() or int(class_label) not in [0, 1, 2]:
+            raise ValueError("Invalid class label. Must be a number between 0 and 2.")
     elif prompt == "return":
         continue
 
