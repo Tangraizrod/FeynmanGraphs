@@ -272,7 +272,8 @@ def lime_explainer(grakel_graphs, class_list, index):
     # Visualize the explanation for each class
     for i in range(3):
         print('Explanation for class %s:' % i)
-        exp.show_in_notebook(show_table=True, labels=[i])
+        exp.save_to_file(f'explanation_class_{i}.html', labels=[i])  # This saves each explanation to a separate HTML file
+
     # Get the explanations as a list
     # Define the classes
     classes_list = [0, 1, 2]  # Update this to match your actual classes
@@ -283,6 +284,7 @@ def lime_explainer(grakel_graphs, class_list, index):
         for feature_weight in explanation_list:
             feature_weights_output.append([feature_weight])
     return feature_weights_output
+
 
 def lime_explainer_vh(grakel_graphs, class_list, index):
     feature_names_list = ["strong", "weak", "electromagnetic"]
