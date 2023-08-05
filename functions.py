@@ -1529,7 +1529,7 @@ def process_graph(index, json_file):
         nx.draw_networkx_labels(g_nx, pos, ax=axs[row, col])
 
         # Print the feature number and labels below the graph
-        axs[row, col].set_title(f'Feature number: {feature_number}, Labels: {labels}')
+        axs[row, col].set_title(f'Feature number: {feature_number}, Labels: {labels}', fontsize=23.5)
 
     # Remove unused subplots
     for i in range(len(substructure_labels), nrows*ncols):
@@ -1851,6 +1851,155 @@ def plot_pca_transform(grakel_graphs, class_list):
     plt.legend(handles=class_legend, loc='upper right')
 
     plt.show()
+
+def rf_performance_depth(grakel_graphs, classes, n_estimators_values, max_depth_values):
+    """
+    Trains a Random Forest classifier for each combination of n_estimators and max_depth and plots the resulting cross-validation scores.
+
+    Parameters
+    ----------
+    grakel_graphs : list
+        A list of GraKeL Graph objects to be used for training the classifiers.
+    classes : list
+        A list of classes corresponding to the input graphs.
+    n_estimators_values : list
+        A list of n_estimators values for which to train the Random Forest classifier and calculate cross-validation scores.
+    max_depth_values : list
+        A list of max_depth values for which to train the Random Forest classifier and calculate cross-validation scores.
+
+    Returns
+    -------
+    None
+    """
+    
+    # Convert the input to numpy arrays
+    my_list = parse_input(grakel_graphs, 1)
+    my_list = [lst[22:] for lst in my_list]
+    my_list = np.array(my_list)
+    classes = np.array(classes)
+
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(my_list, classes, test_size=0.3, random_state=42)
+
+    # Prepare the plot
+    plt.figure(figsize=(12,8))
+
+    for n_estimators in n_estimators_values:
+        for max_depth in max_depth_values:
+            # Train Random Forest with each n_estimators and max_depth value and calculate cross-validation score
+            rnd_clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+            rnd_clf.fit(X_train, y_train)
+            
+            # Calculate cross-validation scores and then convert them into errors
+            scores = cross_val_score(rnd_clf, my_list, classes, cv=8)
+            errors = [1 - score for score in scores]
+            
+            # Plot cross-validation error for current n_estimators and max_depth values
+            plt.plot(range(1, 9), errors, marker='o', label=f'n_estimators = {n_estimators}, max_depth = {max_depth}')
+
+    plt.title('Cross-Validation Errors for Different n_estimators and max_depth Values')
+    plt.xlabel('Fold')
+    plt.ylabel('Cross-validation error')
+    plt.legend()
+    plt.show()
+
+def knn_performance(grakel_graphs, classes, n_neighbors_values):
+    """
+    Trains a k-Nearest Neighbors classifier for each value of n_neighbors and plots the resulting cross-validation scores.
+
+    Parameters
+    ----------
+    grakel_graphs : list
+        A list of GraKeL Graph objects to be used for training the classifiers.
+    classes : list
+        A list of classes corresponding to the input graphs.
+    n_neighbors_values : list
+        A list of n_neighbors values for which to train the k-Nearest Neighbors classifier and calculate cross-validation scores.
+
+    Returns
+    -------
+    None
+    """
+    
+    # Convert the input to numpy arrays
+    my_list = parse_input(grakel_graphs, 1)
+    my_list = [lst[22:] for lst in my_list]
+    my_list = np.array(my_list)
+    classes = np.array(classes)
+
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(my_list, classes, test_size=0.3, random_state=42)
+
+    # Prepare the plot
+    plt.figure(figsize=(10,6))
+
+    for n_neighbors in n_neighbors_values:
+        # Train k-Nearest Neighbors with each n_neighbors value and calculate cross-validation score
+        knn_clf = KNeighborsClassifier(n_neighbors=n_neighbors)
+        knn_clf.fit(X_train, y_train)
+        
+        # Calculate cross-validation scores and then convert them into errors
+        scores = cross_val_score(knn_clf, my_list, classes, cv=8)
+        errors = [1 - score for score in scores]
+        
+        # Plot cross-validation error for current n_neighbors value
+        plt.plot(range(1, 9), errors, marker='o', label=f'n_neighbors = {n_neighbors}')
+
+    plt.title('Cross-Validation Errors for Different n_neighbors Values')
+    plt.xlabel('Fold')
+    plt.ylabel('Cross-validation error')
+    plt.legend()
+    plt.show()
+
+
+def svm_performance(grakel_graphs, classes, C_values):
+    """
+    Trains an SVM classifier for each value of C and plots the resulting cross-validation scores.
+
+    Parameters
+    ----------
+    grakel_graphs : list
+        A list of GraKeL Graph objects to be used for training the classifiers.
+    classes : list
+        A list of classes corresponding to the input graphs.
+    C_values : list
+        A list of C values for which to train the SVM classifier and calculate cross-validation scores.
+
+    Returns
+    -------
+    None
+    """
+    
+    # Create numpy array from the classes list
+    my_list = parse_input(grakel_graphs, 1)
+    my_list = [lst[22:] for lst in my_list]
+    my_list = np.array(my_list)
+    classes = np.array(classes)
+
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(my_list, classes, test_size=0.3, random_state=42)
+    
+    # Prepare the plot
+    plt.figure(figsize=(10,6))
+
+    for C_value in C_values:
+        # Train SVM with each C value and calculate cross-validation score
+        svm_clf = make_pipeline(StandardScaler(), SVC(C=C_value, gamma='auto', probability=True))
+        svm_clf.fit(X_train, y_train)
+        
+        # We calculate cross-validation scores and then convert them into errors
+        scores = cross_val_score(svm_clf, my_list, classes, cv=8)
+        errors = [1 - score for score in scores]
+        
+        # Plot cross-validation error for current C value
+        plt.plot(range(1, 9), errors, marker='o', label=f'C = {C_value}')
+
+    plt.title('Cross-Validation Errors for Different C Values')
+    plt.xlabel('CV-Fold')
+    plt.ylabel('Cross-validation error')
+    plt.legend()
+    plt.show()
+
 
 
 json_file = 'dictionary.json'

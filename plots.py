@@ -8,4 +8,4 @@ from functions import *
 
 # process_graph(-1, "dictionary.json") #graphs labels plot
 
-lime_explainer_voting(graphs, classes, 4) #lime explainer
+lime_explainer_voting(graphs, classes, -1) #lime explainer
