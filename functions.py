@@ -419,7 +419,7 @@ def parse_input_vh(grakel_graphs, h):
     The function requires the GraKeL library to be imported and its WeisfeilerLehmanOptimalAssignment class to 
     be accessible.
     """
-    gk = WeisfeilerLehmanOptimalAssignment(n_iter = h, normalize=False)
+    gk = WeisfeilerLehman(n_iter = h, normalize=False)
 
     # Fit and transform the kernel on the input graph list
     gk.fit_transform(grakel_graphs)
@@ -468,6 +468,53 @@ def representation(grakel_graphs, h):
 
     # Initialize the WeisfeilerLehmanOptimalAssignment kernel
     gk = WeisfeilerLehmanOptimalAssignment(n_iter = h, normalize=True)
+
+    # Fit and transform the kernel on the input graph list
+    gk.fit_transform(grakel_graphs)
+    return gk._inv_labels
+
+def representation_wl(grakel_graphs, h):
+    """
+    Computes the Weisfeiler-Lehman (WL) representation of a list of GraKeL graphs.
+
+    The WL method involves an iterative procedure, controlled by the parameter 'h', that aggregates information 
+    from a node's neighbors to update its label. This function returns a dictionary mapping each unique label 
+    to a unique integer, effectively providing a 'representation' of the graph substructures in the WL procedure.
+
+    Parameters
+    ----------
+    grakel_graphs : list
+        A list of GraKeL Graph objects from which to compute the WL representation.
+    h : int
+        The number of iterations for the Weisfeiler-Lehman procedure.
+
+    Returns
+    -------
+    _inv_labels : dict
+        A dictionary where each unique label in the WL procedure is mapped to a unique integer. The dictionary 
+        keys represent substructures in the graphs, and the values are the unique identifiers for these substructures.
+
+    Examples
+    --------
+    Suppose you have a JSON file 'data.json' that contains a dictionary with NetworkX graphs, and you have 
+    converted these into GraKeL graphs using the `convert_dict_to_grakel_graphs` function:
+
+    >>> grakel_graphs = convert_dict_to_grakel_graphs('data.json')
+
+    You can then compute the WL representation for these graphs:
+
+    >>> wl_representation = representation(grakel_graphs, h=1)
+
+    This will output a dictionary where each key represents a unique substructure in the WL-OA (or just WL) procedure and the 
+    corresponding value is its unique identifier.
+
+    Note
+    ----
+    The function requires the GraKeL library to be imported and its WeisfeilerLehman class to be accessible.
+    """
+
+    # Initialize the WeisfeilerLehman kernel
+    gk = WeisfeilerLehman(n_iter = h, normalize=True)
 
     # Fit and transform the kernel on the input graph list
     gk.fit_transform(grakel_graphs)
@@ -2000,6 +2047,40 @@ def svm_performance(grakel_graphs, classes, C_values):
     plt.legend()
     plt.show()
 
+
+def plot_svm_error_scaled_kernel(grakel_graphs, class_list):
+    """
+    Train a Support Vector Machine (SVM) classifier with a precomputed kernel on the input graph data 
+    and plot the error rates of cross-validation folds.
+
+    ... [rest of the docstring remains unchanged] ...
+    """
+
+    # Compute the kernel matrix
+    kernel_matrix = compute_wl_kernel(grakel_graphs, h=1)
+
+    # Create numpy array from the classes list
+    classes = np.array(class_list)
+
+    # Train SVM with the precomputed kernel
+    clf = svm.SVC(kernel='precomputed', gamma='auto')
+    clf.fit(kernel_matrix, classes)
+
+    # Cross-validation of the model
+    cv_scores = model_selection.cross_val_score(clf, kernel_matrix, classes, cv=6)
+
+    # Calculate the error rates
+    errors = [1 - cv for cv in cv_scores]
+
+    # Plot the error rates
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(len(errors)), errors, marker='o')
+    plt.title('Error Rate for each CV fold Support Vector Machine')
+    plt.xlabel('CV fold')
+    plt.ylabel('Error rate')
+    plt.show()
+    
+    return np.mean(errors)
 
 
 json_file = 'dictionary.json'
