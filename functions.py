@@ -386,7 +386,7 @@ def parse_input(grakel_graphs, h):
 
 def parse_input_vh(grakel_graphs, h):
     """
-    Computes the Weisfeiler-Lehman Optimal Assignment (WL-OA) for feature extraction on a list of GraKeL graphs.
+    Computes the Weisfeiler-Lehman for feature extraction on a list of GraKeL graphs.
 
     The WL-OA is a method used to extract feature vectors from graphs. It involves an iterative procedure,
     controlled by the parameter 'h', that aggregates information from a node's neighbors to update its label. 
@@ -410,19 +410,19 @@ def parse_input_vh(grakel_graphs, h):
 
     >>> grakel_graphs = convert_dict_to_grakel_graphs('data.json')
 
-    You can then extract the WL-OA features for these graphs:
+    You can then extract the WL features for these graphs:
 
-    >>> features = parse_input(grakel_graphs, h=3)
+    >>> features = parse_input(grakel_graphs, h=1)
 
     Note
     ----
-    The function requires the GraKeL library to be imported and its WeisfeilerLehmanOptimalAssignment class to 
+    The function requires the GraKeL library to be imported and its WeisfeilerLehman class to 
     be accessible.
     """
     gk = WeisfeilerLehman(n_iter = h, normalize=False)
 
     # Fit and transform the kernel on the input graph list
-    gk.fit_transform(grakel_graphs)
+    # gk.fit_transform(grakel_graphs)
     features = gk.parse_input(grakel_graphs)
     return features
 
